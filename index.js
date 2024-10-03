@@ -31,7 +31,8 @@ async function run() {
       .db("srs-publications")
       .collection("products");
     const cartCollection = client.db("srs-publications").collection("carts");
-    const usersCollection = client.db("srs-publications").collection("users"); // Users collection
+    const usersCollection = client.db("srs-publications").collection("users");
+    const ordersCollection = client.db("srs-publications").collection("orders"); // Orders collection
 
     // Endpoint to add a new user to the database
     app.post("/api/users", async (req, res) => {
@@ -114,6 +115,35 @@ async function run() {
       } catch (error) {
         console.error("Error fetching cart items:", error);
         res.status(500).send({ message: "Error fetching cart items" });
+      }
+    });
+
+    // Endpoint to place an order
+    app.post("/api/orders", async (req, res) => {
+      const { userId, items, address, phone, totalPrice } = req.body;
+
+      if (!userId || !items || !address || !phone || !totalPrice) {
+        return res.status(400).send({ message: "All fields are required" });
+      }
+
+      try {
+        const order = {
+          userId,
+          items,
+          address,
+          phone,
+          totalPrice,
+          createdAt: new Date(),
+        };
+
+        const result = await ordersCollection.insertOne(order);
+        res.status(201).send({
+          message: "Order placed successfully",
+          orderId: result.insertedId,
+        });
+      } catch (error) {
+        console.error("Error placing order:", error);
+        res.status(500).send({ message: "Error placing order" });
       }
     });
 

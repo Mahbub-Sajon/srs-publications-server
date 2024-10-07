@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // MongoDB connection
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.PASSWORD}@cluster0.zkkhb10.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.PASSWORD}@cluster0.cwu3x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -149,27 +149,39 @@ async function run() {
         res.status(500).send({ message: "Error fetching products" });
       }
     });
+    //transaction id
+    const generateTransactionId = () => {
+      const timestamp = Date.now(); // Get the current timestamp
+      const randomNum = Math.floor(Math.random() * 100000); // Generate a random number between 0 and 99999
+      return `txn_${timestamp}_${randomNum}`; // Combine them into a string
+    };
 
     // SSLCommerz payment integration
     app.post("/create-payment", async (req, res) => {
-      const paymentInfo = req.body;
+      const { orderData } = req.body;
+
+      // Destructure properties from orderData
+      const { userId, userName, items, address, phone, totalPrice, createdAt } =
+        orderData;
 
       try {
+        const transactionId = generateTransactionId(); // Dynamically generate transaction ID
+
         const initiatePayment = {
           store_id: process.env.STORE_ID,
           store_passwd: process.env.STORE_PASSWORD,
-          total_amount: paymentInfo.amount,
-          currency: paymentInfo.currency,
-          tran_id: "abc123", // Generate a unique transaction ID
+          total_amount: totalPrice,
+          currency: "BDT",
+          tran_id: transactionId, // Generate a unique transaction ID
           success_url: "http://localhost:5000/success-payment",
           fail_url: "http://localhost:5000/fail-payment",
           cancel_url: "http://localhost:5000/cancel-payment",
-          product_name: "Product",
+          product_name: items.map((item) => item.title).join(", ") || "Product",
           product_category: "General",
           product_profile: "general",
-          cus_name: "Customer Name",
-          cus_email: "cust@yahoo.com",
-          cus_add1: "Dhaka",
+          cus_name: userName,
+          cus_email: phone,
+          cus_add1: address,
           cus_add2: "Dhaka",
           cus_city: "Dhaka",
           cus_state: "Dhaka",

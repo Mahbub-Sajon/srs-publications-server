@@ -34,6 +34,9 @@ async function run() {
     const cartCollection = client.db("srs-publications").collection("carts");
     const usersCollection = client.db("srs-publications").collection("users");
     const ordersCollection = client.db("srs-publications").collection("orders");
+    const paymentsCollection = client
+      .db("srs-publications")
+      .collection("payments");
 
     // Endpoint to add a user
     app.post("/api/users", async (req, res) => {
@@ -111,6 +114,22 @@ async function run() {
         res.status(500).send({ message: "Error fetching cart items" });
       }
     });
+    // Endpoint to clear a user's cart
+    app.delete("/cart/:userId", async (req, res) => {
+      const { userId } = req.params;
+
+      try {
+        const result = await cartCollection.deleteMany({ userId });
+
+        if (result.deletedCount > 0) {
+          res.status(200).send({ message: "Cart cleared successfully" });
+        } else {
+          res.status(404).send({ message: "No items found in cart" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Error clearing cart" });
+      }
+    });
 
     // Endpoint to place an order
     app.post("/api/orders", async (req, res) => {
@@ -150,11 +169,7 @@ async function run() {
       }
     });
     //transaction id
-    const generateTransactionId = () => {
-      const timestamp = Date.now(); // Get the current timestamp
-      const randomNum = Math.floor(Math.random() * 100000); // Generate a random number between 0 and 99999
-      return `txn_${timestamp}_${randomNum}`; // Combine them into a string
-    };
+    const generateTransactionId = new ObjectId().toString();
 
     // SSLCommerz payment integration
     app.post("/create-payment", async (req, res) => {
@@ -165,17 +180,17 @@ async function run() {
         orderData;
 
       try {
-        const transactionId = generateTransactionId(); // Dynamically generate transaction ID
+        // Dynamically generate transaction ID
 
         const initiatePayment = {
           store_id: process.env.STORE_ID,
           store_passwd: process.env.STORE_PASSWORD,
           total_amount: totalPrice,
           currency: "BDT",
-          tran_id: transactionId, // Generate a unique transaction ID
-          success_url: "http://localhost:5000/success-payment",
-          fail_url: "http://localhost:5000/fail-payment",
-          cancel_url: "http://localhost:5000/cancel-payment",
+          tran_id: generateTransactionId, // Generate a unique transaction ID
+          success_url: "http://localhost:5000/success",
+          fail_url: "http://localhost:5000/fail",
+          cancel_url: "http://localhost:5000/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_category: "General",
           product_profile: "general",
@@ -208,10 +223,23 @@ async function run() {
 
         console.log("SSLCommerz response:", response.data);
 
+        const saveData = {
+          cus_name: userName,
+          tran_id: generateTransactionId,
+          total_amount: totalPrice,
+          status: "Pending",
+        };
+        try {
+          const result = await paymentsCollection.insertOne(saveData);
+          console.log("Payment data saved successfully:", result);
+        } catch (error) {
+          console.error("Error inserting payment data into MongoDB:", error);
+        }
+
+        // }
         // Send the payment URL
         res.send({
           GatewayPageUrl: response.data.GatewayPageURL,
-          // Match this to the frontend expectation
         });
       } catch (error) {
         console.error("Error initiating payment:", error);
@@ -219,9 +247,31 @@ async function run() {
       }
     });
 
-    app.post("/success-payment", async (req, res) => {
-      console.log("Payment Success:", req.body);
-      res.send({ message: "Payment Successful" });
+    app.post("/success", async (req, res) => {
+      const successData = req.body;
+      console.log("Payment Success:", successData);
+
+      if (successData.status != "VALID") {
+        throw new Error("Unauthorized Payment");
+      }
+
+      //update the database after complete payment
+      const query = {
+        tran_id: successData.tran_id,
+      };
+      const update = {
+        $set: {
+          status: "Success",
+        },
+      };
+      const updateData = await paymentsCollection.updateOne(query, update);
+      res.redirect("http://localhost:5173/success");
+    });
+    app.post("/fail", async (req, res) => {
+      res.redirect("http://localhost:5173/fail");
+    });
+    app.post("/cancel", async (req, res) => {
+      res.redirect("http://localhost:5173/cancel");
     });
 
     // Ping to ensure connection works

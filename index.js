@@ -140,19 +140,22 @@ async function run() {
       }
 
       try {
+        const discountedPrice = totalPrice * 0.85;
+
         const order = {
           userId,
           items,
           address,
           phone,
-          totalPrice,
+          totalPrice: discountedPrice,
           createdAt: new Date(),
         };
 
         const result = await ordersCollection.insertOne(order);
         res.status(201).send({
-          message: "Order placed successfully",
+          message: "Order placed successfully with discount",
           orderId: result.insertedId,
+          discountedPrice, // Return the discounted price
         });
       } catch (error) {
         res.status(500).send({ message: "Error placing order" });

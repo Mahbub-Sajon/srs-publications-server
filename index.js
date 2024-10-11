@@ -63,6 +63,46 @@ async function run() {
       }
     });
 
+    // Endpoint to get all users
+    app.get("/api/users", async (req, res) => {
+      try {
+        const users = await usersCollection.find().toArray();
+        console.log(users); // Check if users are being fetched correctly
+        res.status(200).send(users);
+      } catch (error) {
+        res.status(500).send({ message: "Error fetching users" });
+      }
+    });
+
+    // Endpoint to delete a user
+    app.delete("/api/users/:id", async (req, res) => {
+      const id = req.params.id;
+      try {
+        const result = await usersCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        if (result.deletedCount === 1) {
+          res.status(200).send({ message: "User deleted successfully" });
+        } else {
+          res.status(404).send({ message: "User not found" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Error deleting user" });
+      }
+    });
+    //make admin
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          role: "admin",
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
     // Endpoint to add an item to the cart
     app.post("/api/cart", async (req, res) => {
       const { userId, item } = req.body;
@@ -171,6 +211,45 @@ async function run() {
         res.status(500).send({ message: "Error fetching products" });
       }
     });
+    //add products
+    // Endpoint to add a new product
+    app.post("/products", async (req, res) => {
+      const { image, title, category, quantity, price, description } = req.body;
+
+      if (
+        !image ||
+        !title ||
+        !category ||
+        !quantity ||
+        !price ||
+        !description
+      ) {
+        return res.status(400).send({ message: "All fields are required" });
+      }
+
+      try {
+        const product = {
+          image,
+          title,
+          category,
+          quantity: parseInt(quantity),
+          price: parseFloat(price),
+          description,
+          addedAt: new Date(),
+        };
+
+        const result = await productsCollection.insertOne(product);
+        res
+          .status(201)
+          .send({
+            message: "Product added successfully",
+            productId: result.insertedId,
+          });
+      } catch (error) {
+        res.status(500).send({ message: "Error adding product" });
+      }
+    });
+
     //transaction id
     const generateTransactionId = new ObjectId().toString();
 

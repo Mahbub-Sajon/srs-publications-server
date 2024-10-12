@@ -73,6 +73,22 @@ async function run() {
         res.status(500).send({ message: "Error fetching users" });
       }
     });
+    //
+    // Endpoint to check if a user is an admin by email
+    app.get("/api/users/admin/:email", async (req, res) => {
+      const { email } = req.params;
+
+      try {
+        const user = await usersCollection.findOne({ email });
+        if (user && user.role === "admin") {
+          return res.status(200).send({ isAdmin: true });
+        }
+        res.status(200).send({ isAdmin: false });
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        res.status(500).send({ message: "Error checking admin status" });
+      }
+    });
 
     // Endpoint to delete a user
     app.delete("/api/users/:id", async (req, res) => {
@@ -239,12 +255,10 @@ async function run() {
         };
 
         const result = await productsCollection.insertOne(product);
-        res
-          .status(201)
-          .send({
-            message: "Product added successfully",
-            productId: result.insertedId,
-          });
+        res.status(201).send({
+          message: "Product added successfully",
+          productId: result.insertedId,
+        });
       } catch (error) {
         res.status(500).send({ message: "Error adding product" });
       }

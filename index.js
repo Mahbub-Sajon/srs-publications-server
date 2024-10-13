@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    await client.connect();
+    // await client.connect();
 
     const productsCollection = client
       .db("srs-publications")
@@ -284,9 +284,9 @@ async function run() {
           total_amount: totalPrice,
           currency: "BDT",
           tran_id: generateTransactionId, // Generate a unique transaction ID
-          success_url: "http://localhost:5000/success",
-          fail_url: "http://localhost:5000/fail",
-          cancel_url: "http://localhost:5000/cancel",
+          success_url: "https://srs-publications-server.vercel.app/success",
+          fail_url: "https://srs-publications-server.vercel.app/fail",
+          cancel_url: "https://srs-publications-server.vercel.app/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_category: "General",
           product_profile: "general",
@@ -371,8 +371,8 @@ async function run() {
     });
 
     // Ping to ensure connection works
-    await client.db("admin").command({ ping: 1 });
-    console.log("Connected to MongoDB successfully!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Connected to MongoDB successfully!");
   } finally {
     // Uncomment in production
     // await client.close();

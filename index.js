@@ -361,13 +361,13 @@ async function run() {
         },
       };
       const updateData = await paymentsCollection.updateOne(query, update);
-      res.redirect("http://localhost:5173/success");
+      res.redirect("https://srs-publications-b3f6c.web.app/success");
     });
     app.post("/fail", async (req, res) => {
-      res.redirect("http://localhost:5173/fail");
+      res.redirect("https://srs-publications-b3f6c.web.app/fail");
     });
     app.post("/cancel", async (req, res) => {
-      res.redirect("http://localhost:5173/cancel");
+      res.redirect("https://srs-publications-b3f6c.web.app/cancel");
     });
 
     // Ping to ensure connection works

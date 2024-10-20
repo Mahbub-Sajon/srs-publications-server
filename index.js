@@ -103,6 +103,27 @@ async function run() {
         res.status(500).send({ message: "Error fetching user" });
       }
     });
+    // Endpoint to update user details
+    app.put("/api/users/:email", async (req, res) => {
+      const { email } = req.params;
+      const { name } = req.body;
+
+      try {
+        const updateDoc = {
+          $set: {
+            name,
+          },
+        };
+        const result = await usersCollection.updateOne({ email }, updateDoc);
+        if (result.modifiedCount > 0) {
+          res.status(200).send({ message: "User updated successfully" });
+        } else {
+          res.status(404).send({ message: "User not found" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Error updating user" });
+      }
+    });
 
     // Endpoint to delete a user
     app.delete("/api/users/:id", async (req, res) => {

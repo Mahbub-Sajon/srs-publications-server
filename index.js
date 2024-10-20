@@ -395,6 +395,23 @@ async function run() {
         res.status(500).send({ message: "Error initiating payment" });
       }
     });
+    // Endpoint to get payments by user email
+    app.get("/api/payments", async (req, res) => {
+      const { email } = req.query; // Get email from query parameters
+
+      if (!email) {
+        return res.status(400).send({ message: "Email is required" });
+      }
+
+      try {
+        const payments = await paymentsCollection
+          .find({ cus_email: email })
+          .toArray();
+        res.status(200).send(payments);
+      } catch (error) {
+        res.status(500).send({ message: "Error fetching payments" });
+      }
+    });
 
     app.post("/success", async (req, res) => {
       const successData = req.body;

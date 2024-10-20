@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    // await client.connect();
+    await client.connect();
 
     const productsCollection = client
       .db("srs-publications")
@@ -87,6 +87,20 @@ async function run() {
       } catch (error) {
         console.error("Error checking admin status:", error);
         res.status(500).send({ message: "Error checking admin status" });
+      }
+    });
+    // Endpoint to get user details by email
+    app.get("/api/users/:email", async (req, res) => {
+      const { email } = req.params;
+      try {
+        const user = await usersCollection.findOne({ email });
+        if (user) {
+          res.status(200).send(user);
+        } else {
+          res.status(404).send({ message: "User not found" });
+        }
+      } catch (error) {
+        res.status(500).send({ message: "Error fetching user" });
       }
     });
 
@@ -272,8 +286,17 @@ async function run() {
       const { orderData } = req.body;
 
       // Destructure properties from orderData
-      const { userId, userName, items, address, phone, totalPrice, createdAt } =
-        orderData;
+      const {
+        userId,
+        userName,
+        items,
+        address,
+        phone,
+        totalPrice,
+        createdAt,
+        email,
+        productId,
+      } = orderData;
 
       try {
         // Dynamically generate transaction ID
@@ -288,10 +311,11 @@ async function run() {
           fail_url: "https://srs-publications-server.vercel.app/fail",
           cancel_url: "https://srs-publications-server.vercel.app/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
+          product_id: productId,
           product_category: "General",
           product_profile: "general",
           cus_name: userName,
-          cus_email: phone,
+          cus_email: email,
           cus_add1: address,
           cus_add2: "Dhaka",
           cus_city: "Dhaka",
@@ -323,6 +347,14 @@ async function run() {
           cus_name: userName,
           tran_id: generateTransactionId,
           total_amount: totalPrice,
+          cus_id: userId,
+          cus_email: email,
+          cus_add: address,
+          cus_phone: phone,
+          product_id: productId,
+          product_name: items.map((item) => item.title).join(", "),
+          quantity: items.map((item) => item.quantity).join(", "),
+          time: createdAt,
           status: "Pending",
         };
         try {
@@ -371,8 +403,8 @@ async function run() {
     });
 
     // Ping to ensure connection works
-    // await client.db("admin").command({ ping: 1 });
-    // console.log("Connected to MongoDB successfully!");
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected to MongoDB successfully!");
   } finally {
     // Uncomment in production
     // await client.close();

@@ -67,7 +67,7 @@ async function run() {
     app.get("/api/users", async (req, res) => {
       try {
         const users = await usersCollection.find().toArray();
-        console.log(users); // Check if users are being fetched correctly
+        // console.log(users); // Check if users are being fetched correctly
         res.status(200).send(users);
       } catch (error) {
         res.status(500).send({ message: "Error fetching users" });
@@ -300,7 +300,7 @@ async function run() {
     });
 
     //transaction id
-    const generateTransactionId = new ObjectId().toString();
+    // const generateTransactionId = new ObjectId().toString();
 
     // SSLCommerz payment integration
     app.post("/create-payment", async (req, res) => {
@@ -320,17 +320,18 @@ async function run() {
       } = orderData;
 
       try {
-        // Dynamically generate transaction ID
+        // Dynamically generate a unique transaction ID for each payment
+        const generateTransactionId = new ObjectId().toString();
 
         const initiatePayment = {
           store_id: process.env.STORE_ID,
           store_passwd: process.env.STORE_PASSWORD,
           total_amount: totalPrice,
           currency: "BDT",
-          tran_id: generateTransactionId, // Generate a unique transaction ID
-          success_url: "https://srs-publications-server.vercel.app/success",
-          fail_url: "https://srs-publications-server.vercel.app/fail",
-          cancel_url: "https://srs-publications-server.vercel.app/cancel",
+          tran_id: generateTransactionId, // Use the newly generated transaction ID
+          success_url: "http://localhost:5000/success",
+          fail_url: "http://localhost:5000/fail",
+          cancel_url: "http://localhost:5000/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_id: productId,
           product_category: "General",
@@ -362,11 +363,10 @@ async function run() {
           },
         });
 
-        console.log("SSLCommerz response:", response.data);
-
+        // Save payment data to MongoDB
         const saveData = {
           cus_name: userName,
-          tran_id: generateTransactionId,
+          tran_id: generateTransactionId, // Save the newly generated transaction ID
           total_amount: totalPrice,
           cus_id: userId,
           cus_email: email,
@@ -380,12 +380,11 @@ async function run() {
         };
         try {
           const result = await paymentsCollection.insertOne(saveData);
-          console.log("Payment data saved successfully:", result);
+          // console.log("Payment data saved successfully:", result);
         } catch (error) {
           console.error("Error inserting payment data into MongoDB:", error);
         }
 
-        // }
         // Send the payment URL
         res.send({
           GatewayPageUrl: response.data.GatewayPageURL,
@@ -395,6 +394,27 @@ async function run() {
         res.status(500).send({ message: "Error initiating payment" });
       }
     });
+
+    // Endpoint to get payment data by transaction ID
+    app.get("/api/payments/transaction/:transactionId", async (req, res) => {
+      const { transactionId } = req.params;
+
+      try {
+        const paymentData = await paymentsCollection.findOne({
+          tran_id: transactionId,
+        });
+
+        if (paymentData) {
+          res.status(200).send(paymentData);
+        } else {
+          res.status(404).send({ message: "Payment not found" });
+        }
+      } catch (error) {
+        console.error("Error fetching payment data:", error);
+        res.status(500).send({ message: "Error fetching payment data" });
+      }
+    });
+
     // Endpoint to get payments by user email
     app.get("/api/payments", async (req, res) => {
       const { email } = req.query; // Get email from query parameters
@@ -415,13 +435,12 @@ async function run() {
 
     app.post("/success", async (req, res) => {
       const successData = req.body;
-      console.log("Payment Success:", successData);
 
-      if (successData.status != "VALID") {
+      if (successData.status !== "VALID") {
         throw new Error("Unauthorized Payment");
       }
 
-      //update the database after complete payment
+      // Update the database after completing payment
       const query = {
         tran_id: successData.tran_id,
       };
@@ -430,14 +449,17 @@ async function run() {
           status: "Success",
         },
       };
-      const updateData = await paymentsCollection.updateOne(query, update);
-      res.redirect("https://srs-publications-b3f6c.web.app/success");
+      await paymentsCollection.updateOne(query, update);
+
+      // Redirect to frontend with the transaction ID
+      res.redirect(`http://localhost:5173/success/${successData.tran_id}`);
     });
+
     app.post("/fail", async (req, res) => {
-      res.redirect("https://srs-publications-b3f6c.web.app/fail");
+      res.redirect("http://localhost:5173/fail");
     });
     app.post("/cancel", async (req, res) => {
-      res.redirect("https://srs-publications-b3f6c.web.app/cancel");
+      res.redirect("http://localhost:5173/cancel");
     });
 
     // Ping to ensure connection works

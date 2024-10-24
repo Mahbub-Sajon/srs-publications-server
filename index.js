@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    await client.connect();
+    // await client.connect();
 
     const productsCollection = client
       .db("srs-publications")
@@ -414,6 +414,21 @@ async function run() {
         res.status(500).send({ message: "Error fetching payment data" });
       }
     });
+    //quantity
+    app.get("/api/products/:productId", async (req, res) => {
+      const { productId } = req.params;
+      try {
+        const product = await productsCollection.findOne({ _id: productId });
+        if (product) {
+          res.status(200).json(product);
+        } else {
+          res.status(404).json({ message: "Product not found" });
+        }
+      } catch (error) {
+        res.status(500).json({ message: "Error fetching product" });
+      }
+    });
+    //update quantity
 
     // Endpoint to get payments by user email
     app.get("/api/payments", async (req, res) => {

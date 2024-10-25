@@ -334,6 +334,7 @@ async function run() {
           cancel_url: "https://srs-publications-server.vercel.app/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_id: productId,
+          author: items.map((item) => item.author).join(", ") || "Author",
           product_category: "General",
           product_profile: "general",
           cus_name: userName,
@@ -374,6 +375,7 @@ async function run() {
           cus_phone: phone,
           product_id: productId,
           product_name: items.map((item) => item.title).join(", "),
+          author: items.map((item) => item.author).join(", "),
           quantity: items.map((item) => item.quantity).join(", "),
           time: createdAt,
           status: "Pending",
@@ -428,8 +430,106 @@ async function run() {
         res.status(500).json({ message: "Error fetching product" });
       }
     });
-    //update quantity
+    //
+    //statistics functionality
+    //
+    // Endpoint to get statistics for best sellers, best authors, and half-yearly sales
+    app.get("/api/payments/statistics", async (req, res) => {
+      try {
+        // Get the current date
+        const currentDate = new Date();
 
+        // Calculate date six months ago
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(currentDate.getMonth() - 6);
+
+        // Aggregate best-selling books
+        const bestSellersBooks = await paymentsCollection
+          .aggregate([
+            {
+              $group: {
+                _id: "$product_name",
+                totalSales: { $sum: { $toDouble: "$total_amount" } },
+                quantitySold: { $sum: { $toInt: "$quantity" } },
+              },
+            },
+            { $sort: { totalSales: -1 } },
+            { $limit: 10 }, // Top 10 best-selling books
+          ])
+          .toArray();
+
+        // Aggregate best-selling authors
+        const bestSellersAuthors = await paymentsCollection
+          .aggregate([
+            {
+              $group: {
+                _id: "$author",
+                totalSales: { $sum: { $toDouble: "$total_amount" } },
+                quantitySold: { $sum: { $toInt: "$quantity" } },
+              },
+            },
+            { $sort: { totalSales: -1 } },
+            { $limit: 10 }, // Top 10 best-selling authors
+          ])
+          .toArray();
+
+        // Calculate half-yearly sales
+        const halfYearlySales = await paymentsCollection
+          .aggregate([
+            {
+              $match: {
+                time: { $gte: sixMonthsAgo }, // Filter for the last six months
+              },
+            },
+            {
+              $group: {
+                _id: {
+                  $cond: [
+                    { $lte: [{ $month: "$time" }, 6] },
+                    "January-June",
+                    "July-December",
+                  ],
+                },
+                totalSales: { $sum: { $toDouble: "$total_amount" } },
+              },
+            },
+          ])
+          .toArray();
+
+        // Prepare half-yearly sales data with placeholders if necessary
+        const halfYearlySalesFormatted = [
+          { month: "January-June", totalSales: 0 },
+          { month: "July-December", totalSales: 0 },
+        ];
+
+        halfYearlySales.forEach((item) => {
+          const periodIndex = halfYearlySalesFormatted.findIndex(
+            (period) => period.month === item._id
+          );
+          if (periodIndex !== -1) {
+            halfYearlySalesFormatted[periodIndex].totalSales = item.totalSales;
+          }
+        });
+
+        // Send the response with aggregated data
+        res.status(200).send({
+          bestSellers: bestSellersBooks.map((item) => ({
+            productName: item._id,
+            totalSales: item.totalSales,
+          })),
+          bestAuthors: bestSellersAuthors.map((item) => ({
+            authorName: item._id,
+            totalSales: item.totalSales,
+          })),
+          halfYearlySales: halfYearlySalesFormatted,
+        });
+      } catch (error) {
+        console.error("Error fetching statistics:", error);
+        res.status(500).send({ message: "Error fetching statistics" });
+      }
+    });
+
+    //
     // Endpoint to get payments by user email
     app.get("/api/payments", async (req, res) => {
       const { email } = req.query; // Get email from query parameters
@@ -480,8 +580,8 @@ async function run() {
     });
 
     // Ping to ensure connection works
-    await client.db("admin").command({ ping: 1 });
-    console.log("Connected to MongoDB successfully!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Connected to MongoDB successfully!");
   } finally {
     // Uncomment in production
     // await client.close();

@@ -265,7 +265,8 @@ async function run() {
     //add products
     // Endpoint to add a new product
     app.post("/products", async (req, res) => {
-      const { image, title, category, quantity, price, description } = req.body;
+      const { image, title, category, quantity, price, description, author } =
+        req.body;
 
       if (
         !image ||
@@ -273,7 +274,8 @@ async function run() {
         !category ||
         !quantity ||
         !price ||
-        !description
+        !description ||
+        !author
       ) {
         return res.status(400).send({ message: "All fields are required" });
       }
@@ -286,6 +288,7 @@ async function run() {
           quantity: parseInt(quantity),
           price: parseFloat(price),
           description,
+          author,
           addedAt: new Date(),
         };
 

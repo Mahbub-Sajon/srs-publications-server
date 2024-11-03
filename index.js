@@ -155,22 +155,25 @@ async function run() {
     });
 
     // Endpoint to add an item to the cart
+    const { ObjectId } = require("mongodb");
+
     app.post("/api/cart", async (req, res) => {
       const { userId, item } = req.body;
 
-      if (!userId || !item) {
+      if (!userId || !item || !item._id) {
         return res
           .status(400)
-          .send({ message: "User ID and item are required" });
+          .send({ message: "User ID and item ID are required" });
       }
 
       try {
         const existingCartItem = await cartCollection.findOne({
           userId,
-          "item._id": item._id,
+          "item._id": new ObjectId(item._id), // Corrected usage of ObjectId
         });
 
         if (existingCartItem) {
+          // You may want to check for a max quantity here, e.g., if existingCartItem.item.quantity < MAX_QUANTITY
           await cartCollection.updateOne(
             { _id: existingCartItem._id },
             { $inc: { "item.quantity": 1 } }
@@ -190,6 +193,7 @@ async function run() {
           });
         }
       } catch (error) {
+        console.error(error); // Log the error for debugging purposes
         res.status(500).send({ message: "Error adding item to cart" });
       }
     });
@@ -198,16 +202,38 @@ async function run() {
     app.get("/cart/:userId", async (req, res) => {
       const { userId } = req.params;
 
+      // Validate userId (convert to ObjectId if needed)
+      if (!userId) {
+        return res.status(400).send({ message: "User ID is required" });
+      }
+
       try {
-        const userCartItems = await cartCollection.find({ userId }).toArray();
-        res.send(userCartItems);
+        const userCartItems = await cartCollection
+          .find({ userId: userId })
+          .toArray();
+
+        if (userCartItems.length === 0) {
+          return res.status(404).send({ message: "No items found in cart" });
+        }
+
+        res.send({
+          message: "Cart items retrieved successfully",
+          items: userCartItems,
+        });
       } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).send({ message: "Error fetching cart items" });
       }
     });
+
     // Endpoint to clear a user's cart
     app.delete("/cart/:userId", async (req, res) => {
       const { userId } = req.params;
+
+      // Validate userId (for example, if you are using ObjectId)
+      if (!userId) {
+        return res.status(400).send({ message: "User ID is required" });
+      }
 
       try {
         const result = await cartCollection.deleteMany({ userId });
@@ -215,9 +241,10 @@ async function run() {
         if (result.deletedCount > 0) {
           res.status(200).send({ message: "Cart cleared successfully" });
         } else {
-          res.status(404).send({ message: "No items found in cart" });
+          res.status(404).send({ message: "No items found in cart to clear" });
         }
       } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).send({ message: "Error clearing cart" });
       }
     });
@@ -226,11 +253,24 @@ async function run() {
     app.post("/api/orders", async (req, res) => {
       const { userId, items, address, phone, totalPrice } = req.body;
 
-      if (!userId || !items || !address || !phone || !totalPrice) {
-        return res.status(400).send({ message: "All fields are required" });
+      // Validate input fields
+      if (
+        !userId ||
+        !items ||
+        !Array.isArray(items) ||
+        items.length === 0 ||
+        !address ||
+        !phone ||
+        !totalPrice
+      ) {
+        return res.status(400).send({
+          message:
+            "All fields are required and items must be a non-empty array",
+        });
       }
 
       try {
+        // Apply a 15% discount on the total price
         const discountedPrice = totalPrice * 0.85;
 
         const order = {
@@ -244,11 +284,12 @@ async function run() {
 
         const result = await ordersCollection.insertOne(order);
         res.status(201).send({
-          message: "Order placed successfully with discount",
+          message: "Order placed successfully with a discount",
           orderId: result.insertedId,
           discountedPrice, // Return the discounted price
         });
       } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).send({ message: "Error placing order" });
       }
     });
@@ -422,17 +463,28 @@ async function run() {
     //quantity
     app.get("/api/products/:productId", async (req, res) => {
       const { productId } = req.params;
+
+      // Validate the productId
+      if (!ObjectId.isValid(productId)) {
+        return res.status(400).json({ message: "Invalid product ID format" });
+      }
+
       try {
-        const product = await productsCollection.findOne({ _id: productId });
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(productId),
+        });
+
         if (product) {
           res.status(200).json(product);
         } else {
           res.status(404).json({ message: "Product not found" });
         }
       } catch (error) {
+        console.error(error); // Log the error for debugging
         res.status(500).json({ message: "Error fetching product" });
       }
     });
+
     //
     //statistics functionality
     //

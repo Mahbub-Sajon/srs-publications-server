@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    await client.connect();
+    // await client.connect();
 
     const productsCollection = client
       .db("srs-publications")
@@ -651,20 +651,20 @@ async function run() {
 
       // Redirect to frontend with the transaction ID
       res.redirect(
-        `https://srs-publications-net.netlify.app/success/${successData.tran_id}`
+        `https://srs-publications-online.netlify.app/success/${successData.tran_id}`
       );
     });
 
     app.post("/fail", async (req, res) => {
-      res.redirect("https://srs-publications-net.netlify.app/fail");
+      res.redirect("https://srs-publications-online.netlify.app/fail");
     });
     app.post("/cancel", async (req, res) => {
-      res.redirect("https://srs-publications-net.netlify.app/cancel");
+      res.redirect("https://srs-publications-online.netlify.app/cancel");
     });
 
     // Ping to ensure connection works
-    await client.db("admin").command({ ping: 1 });
-    console.log("Connected to MongoDB successfully!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Connected to MongoDB successfully!");
   } finally {
     // Uncomment in production
     // await client.close();

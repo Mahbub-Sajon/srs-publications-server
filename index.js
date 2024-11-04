@@ -401,9 +401,9 @@ async function run() {
           total_amount: totalPrice,
           currency: "BDT",
           tran_id: generateTransactionId, // Use the newly generated transaction ID
-          success_url: "http://localhost:5000/success",
-          fail_url: "http://localhost:5000/fail",
-          cancel_url: "http://localhost:5000/cancel",
+          success_url: "https://srs-publications-server.vercel.app/success",
+          fail_url: "https://srs-publications-server.vercel.app/fail",
+          cancel_url: "https://srs-publications-server.vercel.app/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_id: productId,
           author: items.map((item) => item.author).join(", ") || "Author",
@@ -650,14 +650,16 @@ async function run() {
       await paymentsCollection.updateOne(query, update);
 
       // Redirect to frontend with the transaction ID
-      res.redirect(`http://localhost:5173/success/${successData.tran_id}`);
+      res.redirect(
+        `https://srs-publications-net.netlify.app/success/${successData.tran_id}`
+      );
     });
 
     app.post("/fail", async (req, res) => {
-      res.redirect("http://localhost:5173/fail");
+      res.redirect("https://srs-publications-net.netlify.app/fail");
     });
     app.post("/cancel", async (req, res) => {
-      res.redirect("http://localhost:5173/cancel");
+      res.redirect("https://srs-publications-net.netlify.app/cancel");
     });
 
     // Ping to ensure connection works

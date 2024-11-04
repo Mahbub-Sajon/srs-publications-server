@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server
-    // await client.connect();
+    await client.connect();
 
     const productsCollection = client
       .db("srs-publications")
@@ -303,6 +303,34 @@ async function run() {
         res.status(500).send({ message: "Error fetching products" });
       }
     });
+    // Update product quantity endpoint
+    app.patch("/api/products/:id", async (req, res) => {
+      const productId = req.params.id;
+      const { quantity } = req.body;
+
+      // Validate that quantity is a number and greater than or equal to zero
+      if (typeof quantity !== "number" || quantity < 0) {
+        return res.status(400).send({ message: "Invalid quantity value" });
+      }
+
+      try {
+        // Update the product quantity in the database
+        const result = await productsCollection.updateOne(
+          { _id: new ObjectId(productId) },
+          { $set: { quantity: quantity } }
+        );
+
+        // Check if any document was modified
+        if (result.modifiedCount > 0) {
+          res.send({ message: "Product quantity updated successfully" });
+        } else {
+          res.status(404).send({ message: "Product not found" });
+        }
+      } catch (error) {
+        console.error("Error updating product quantity:", error);
+        res.status(500).send({ message: "Error updating product quantity" });
+      }
+    });
     //add products
     // Endpoint to add a new product
     app.post("/products", async (req, res) => {
@@ -373,9 +401,9 @@ async function run() {
           total_amount: totalPrice,
           currency: "BDT",
           tran_id: generateTransactionId, // Use the newly generated transaction ID
-          success_url: "https://srs-publications-server.vercel.app/success",
-          fail_url: "https://srs-publications-server.vercel.app/fail",
-          cancel_url: "https://srs-publications-server.vercel.app/cancel",
+          success_url: "http://localhost:5000/success",
+          fail_url: "http://localhost:5000/fail",
+          cancel_url: "http://localhost:5000/cancel",
           product_name: items.map((item) => item.title).join(", ") || "Product",
           product_id: productId,
           author: items.map((item) => item.author).join(", ") || "Author",
@@ -622,21 +650,19 @@ async function run() {
       await paymentsCollection.updateOne(query, update);
 
       // Redirect to frontend with the transaction ID
-      res.redirect(
-        `https://srs-publications-b3f6c.web.app/success/${successData.tran_id}`
-      );
+      res.redirect(`http://localhost:5173/success/${successData.tran_id}`);
     });
 
     app.post("/fail", async (req, res) => {
-      res.redirect("https://srs-publications-b3f6c.web.app/fail");
+      res.redirect("http://localhost:5173/fail");
     });
     app.post("/cancel", async (req, res) => {
-      res.redirect("https://srs-publications-b3f6c.web.app/cancel");
+      res.redirect("http://localhost:5173/cancel");
     });
 
     // Ping to ensure connection works
-    // await client.db("admin").command({ ping: 1 });
-    // console.log("Connected to MongoDB successfully!");
+    await client.db("admin").command({ ping: 1 });
+    console.log("Connected to MongoDB successfully!");
   } finally {
     // Uncomment in production
     // await client.close();
